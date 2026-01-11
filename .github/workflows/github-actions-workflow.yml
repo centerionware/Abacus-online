@@ -1,0 +1,77 @@
+name: Deploy Abacus to GitHub Pages
+
+on:
+  push:
+    branches: [ main ]
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Build Library
+        run: npm run build
+
+      - name: Prepare Pages Folder
+        run: |
+          mkdir -p public_dist
+          cp dist/abacus.min.js public_dist/
+          # Create a demo showing the "Class Based" auto-init
+          cat <<EOF > public_dist/index.html
+          <!DOCTYPE html>
+          <html>
+          <head>
+            <title>Abacus.js Demo</title>
+            <script src="https://cdn.tailwindcss.com"></script>
+            <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+          </head>
+          <body class="bg-slate-100 p-4 sm:p-8 font-sans">
+            <div class="max-w-4xl mx-auto space-y-8">
+              <header class="text-center">
+                <h1 class="text-3xl font-bold text-slate-800">Abacus.js CDN Demo</h1>
+                <p class="text-slate-500">Just add the class <code>abacus-js</code> to any div.</p>
+              </header>
+
+              <div class="space-y-4">
+                <h2 class="text-xl font-semibold">1. Standard Soroban</h2>
+                <div class="abacus-js shadow-lg" data-style="SOROBAN" data-decimals="2" style="height: 500px;"></div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div class="space-y-4">
+                  <h2 class="text-xl font-semibold">2. Chinese Suanpan</h2>
+                  <div class="abacus-js shadow-md" data-style="SUANPAN" style="height: 400px;"></div>
+                </div>
+                <div class="space-y-4">
+                  <h2 class="text-xl font-semibold">3. School Style</h2>
+                  <div class="abacus-js shadow-md" data-style="SCHOOL" style="height: 400px;"></div>
+                </div>
+              </div>
+            </div>
+            
+            <script src="./abacus.min.js"></script>
+          </body>
+          </html>
+          EOF
+
+      - name: Deploy to GitHub Pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: public_dist
+          branch: gh-pages
