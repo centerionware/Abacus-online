@@ -1,0 +1,5 @@
+{
+  "name": "Interactive Abacus",
+  "description": "A fully interactive, physically modelled abacus supporting Soroban (Japanese), Suanpan (Chinese), and School (Rekenrek/IKEA) styles. Features touch support, real-time calculations, and high-performance canvas rendering.",
+  "requestFramePermissions": []
+}
