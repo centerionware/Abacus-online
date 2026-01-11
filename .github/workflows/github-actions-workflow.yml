@@ -28,10 +28,19 @@ jobs:
       - name: Build Library
         run: npm run build
 
+      - name: Upload Lockfile Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: package-lock
+          path: package-lock.json
+
       - name: Prepare Pages Folder
         run: |
           mkdir -p public_dist
           cp dist/abacus.min.js public_dist/
+          # Copy lockfile to public folder so it can be manually downloaded from the live site
+          cp package-lock.json public_dist/ || true
+          
           # Create a demo showing the "Class Based" auto-init
           cat <<EOF > public_dist/index.html
           <!DOCTYPE html>
