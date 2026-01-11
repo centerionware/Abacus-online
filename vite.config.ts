@@ -13,7 +13,8 @@ export default defineConfig({
         extend: true,
       },
     },
-    minify: 'terser',
+    // Using default esbuild minifier to avoid 'terser not found' error
+    minify: 'esbuild',
     sourcemap: false,
   }
 });

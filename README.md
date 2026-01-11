@@ -1,44 +1,57 @@
 # Interactive Abacus.js
 
-A high-performance, touch-optimized abacus component. Perfect for GoHighLevel, Moodle, or custom educational sites.
+A high-performance, touch-optimized abacus for educators. Easily embed Japanese, Chinese, or School-style abacuses into your web pages.
 
-## 🚀 The "Easy" Way (Teachers)
+## 🚀 Easy Setup (For Teachers)
 
-Just add the script and apply the class to your `<div>` or `<canvas>`.
+Simply include the script, then add one of these classes to your elements.
+
+### 1. Include the Library
+```html
+<script src="https://your-cdn.com/abacus.min.js"></script>
+```
+
+### 2. Use "Style" Classes
+No JavaScript required! Just add the class for the style you want:
 
 ```html
-<!-- 1. Include the Library -->
-<script src="https://your-cdn.com/abacus.min.js"></script>
+<!-- A Japanese Soroban with full UI (header/total) -->
+<div class="abacus-soroban" style="height: 500px; width: 100%;"></div>
 
-<!-- 2. Add an element with the 'abacus-js' class -->
-<div class="abacus-js" 
-     data-style="SOROBAN" 
-     data-decimals="2" 
-     style="height: 500px; width: 100%;">
-</div>
+<!-- A Chinese Suanpan -->
+<div class="abacus-suanpan" style="height: 500px; width: 100%;"></div>
+
+<!-- A School / IKEA style abacus -->
+<div class="abacus-school" style="height: 400px; width: 100%;"></div>
+```
+
+## 🎨 Minimal Mode (Canvas only)
+If you just want the abacus beads without the header and "Total" display, apply the class directly to a `<canvas>` element:
+
+```html
+<canvas class="abacus-soroban" style="height: 400px; width: 600px;"></canvas>
 ```
 
 ## 🛠 Configuration Attributes
 
-| Attribute | Description | Options |
+| Attribute | Description | Default |
 |-----------|-------------|---------|
-| `data-style` | The abacus layout | `SOROBAN`, `SUANPAN`, `SCHOOL` |
-| `data-decimals` | Decimal places | `0`, `1`, `2`, `3`, `4` |
-| `data-ui` | Show header/total | `true` (default), `false` |
+| `data-decimals` | Initial decimal places | `0` |
+| `data-ui` | Force show/hide UI shell | `true` (div) / `false` (canvas) |
 
 ## 💡 Developer API
 
-For manual control:
-
 ```javascript
-const myAbacus = InteractiveAbacus.create('#my-element', {
-  style: 'SUANPAN',
-  decimals: 0
+// Manual init
+const myAbacus = InteractiveAbacus.create('#my-id', {
+  style: 'SOROBAN',
+  decimals: 2,
+  showUI: true
 });
 
-// Listen for total changes
-document.querySelector('#my-element').addEventListener('abacus:change', (e) => {
-  console.log('Current Total:', e.detail.total);
+// Watch for changes
+document.querySelector('#my-id').addEventListener('abacus:change', (e) => {
+  alert('Student set value to: ' + e.detail.total);
 });
 ```
 

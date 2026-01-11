@@ -1,7 +1,6 @@
 import { AbacusEngine } from './services/abacusEngine';
 import { AbacusStyle, AbacusScheme } from './types';
 
-// Scheme Definitions
 const SCHEMES: Record<AbacusStyle, AbacusScheme> = {
   [AbacusStyle.SOROBAN]: {
     id: AbacusStyle.SOROBAN,
@@ -85,15 +84,17 @@ class AbacusApp {
   constructor(container: HTMLElement, options: AbacusOptions = {}) {
     this.container = container;
     
-    // Config from options or data attributes
+    // Config resolution order: Manual Option > Data Attribute > Style Class > Default
     const dataStyle = container.getAttribute('data-style')?.toUpperCase();
-    this.currentStyle = (dataStyle as AbacusStyle) || options.style || AbacusStyle.SOROBAN;
+    this.currentStyle = (options.style) || (dataStyle as AbacusStyle) || AbacusStyle.SOROBAN;
     
     const dataDecimals = container.getAttribute('data-decimals');
     this.decimalPlaces = dataDecimals ? parseInt(dataDecimals) : (options.decimals ?? 0);
     
+    // Default showUI based on tag type: False for canvas, True for anything else
+    const isCanvas = container.tagName.toLowerCase() === 'canvas';
     const dataUI = container.getAttribute('data-ui');
-    this.showUI = dataUI !== null ? dataUI === 'true' : (options.showUI ?? true);
+    this.showUI = dataUI !== null ? dataUI === 'true' : (options.showUI ?? !isCanvas);
 
     this.initUI();
     this.initEngine();
@@ -152,10 +153,15 @@ class AbacusApp {
       this.decimalContainer = this.container.querySelector('.decimal-container');
       this.canvas = this.container.querySelector('.abacus-canvas') as HTMLCanvasElement;
     } else {
-      // Minimal mode: Just the canvas filling the container
-      this.container.style.position = 'relative';
-      this.container.innerHTML = `<canvas class="abacus-canvas w-full h-full block cursor-pointer touch-none"></canvas>`;
-      this.canvas = this.container.querySelector('.abacus-canvas') as HTMLCanvasElement;
+      // Minimal mode
+      if (this.container instanceof HTMLCanvasElement) {
+        this.canvas = this.container;
+        this.canvas.classList.add('cursor-pointer', 'touch-none');
+      } else {
+        this.container.style.position = 'relative';
+        this.container.innerHTML = `<canvas class="abacus-canvas w-full h-full block cursor-pointer touch-none"></canvas>`;
+        this.canvas = this.container.querySelector('.abacus-canvas') as HTMLCanvasElement;
+      }
     }
   }
 
@@ -163,7 +169,6 @@ class AbacusApp {
     this.engine = new AbacusEngine(this.canvas, (total) => {
       this.total = total;
       this.updateTotalDisplay();
-      // Emit a custom event so parent applications can listen to the total
       this.container.dispatchEvent(new CustomEvent('abacus:change', { detail: { total } }));
     });
     
@@ -218,40 +223,39 @@ class AbacusApp {
 
 // Global API
 const InteractiveAbacus = {
-  /**
-   * Manual initialization for a specific element.
-   */
   create: (selector: string, options: AbacusOptions = {}) => {
     const el = document.querySelector(selector);
     if (el) return new AbacusApp(el as HTMLElement, options);
     console.warn('[Abacus.js] Target not found:', selector);
   },
 
-  /**
-   * Scan the entire document for elements with the 'abacus-js' class and auto-init them.
-   */
   initAll: () => {
-    const elements = document.querySelectorAll('.abacus-js');
-    elements.forEach(el => {
-      // Avoid double initialization
-      if ((el as any)._abacusInitialized) return;
-      new AbacusApp(el as HTMLElement);
-      (el as any)._abacusInitialized = true;
+    const classToStyle: Record<string, AbacusStyle | undefined> = {
+      '.abacus-js': undefined,
+      '.abacus-soroban': AbacusStyle.SOROBAN,
+      '.abacus-suanpan': AbacusStyle.SUANPAN,
+      '.abacus-school': AbacusStyle.SCHOOL
+    };
+
+    Object.entries(classToStyle).forEach(([className, style]) => {
+      document.querySelectorAll(className).forEach(el => {
+        if ((el as any)._abacusInitialized) return;
+        new AbacusApp(el as HTMLElement, { style });
+        (el as any)._abacusInitialized = true;
+      });
     });
   }
 };
 
 (window as any).InteractiveAbacus = InteractiveAbacus;
-(window as any).createAbacus = InteractiveAbacus.create; // Backward compatibility
+(window as any).createAbacus = InteractiveAbacus.create;
 
-// Auto-init on load
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', InteractiveAbacus.initAll);
 } else {
   InteractiveAbacus.initAll();
 }
 
-// Also auto-init #root for development environment
 if (document.getElementById('root')) {
   InteractiveAbacus.create('#root');
 }
