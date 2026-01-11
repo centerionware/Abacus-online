@@ -1,10 +1,10 @@
+
 import { AbacusScheme, AbacusStyle, BeadGroupConfig } from '../types';
 
 // Constants
 const ANIMATION_SPEED = 0.25; 
 const BEAD_HEIGHT_RATIO = 0.65;
 const BEAD_WIDTH_RATIO = 0.9;
-const TOUCH_OFFSET_Y = -50; // Offset the cursor above the finger so you can see it
 
 class Bead {
   // Properties
@@ -115,12 +115,11 @@ export class AbacusEngine {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
       const touch = e.touches[0];
-      // On touch, we check hit immediately but also start drag
       this.handleStart(touch.clientX - rect.left, touch.clientY - rect.top);
     }, { passive: false });
     
     canvas.addEventListener('touchmove', (e) => {
-      e.preventDefault(); // Prevent scrolling
+      e.preventDefault();
       if (this.cursor.active) {
         const rect = canvas.getBoundingClientRect();
         const touch = e.touches[0];
@@ -165,7 +164,6 @@ export class AbacusEngine {
   destroy() {
     if (this.requestRef) cancelAnimationFrame(this.requestRef);
     window.removeEventListener('mouseup', this.handleEnd);
-    // Note: other listeners are on canvas or anonymous, might need cleanup if strictly managing memory
   }
 
   private createBeads() {
@@ -201,7 +199,6 @@ export class AbacusEngine {
     this.canvas.height = h * dpr;
     this.ctx.scale(dpr, dpr);
     
-    // Adaptive padding based on screen size
     if (w < 400) {
         this.framePadding = 10;
     } else {
@@ -284,9 +281,9 @@ export class AbacusEngine {
           group.forEach((bead, bIdx) => {
             bead.h = beadH;
             bead.w = beadW;
-            bead.y = cy - beadH/2;
-            bead.activeY = bead.y;
-            bead.inactiveY = bead.y;
+            const yPos = cy - beadH/2;
+            bead.activeY = yPos;
+            bead.inactiveY = yPos;
             bead.activeX = this.framePadding + (bIdx * beadW);
             const offsetFromRight = (count - 1 - bIdx) * beadW;
             bead.inactiveX = (this.width - this.framePadding) - beadW - offsetFromRight;
@@ -317,15 +314,12 @@ export class AbacusEngine {
   private draw() {
     const { ctx, width, height } = this;
     
-    // Background
     ctx.fillStyle = this.scheme.frameColor;
     ctx.fillRect(0, 0, width, height);
 
-    // Inner Desk
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(this.framePadding, this.framePadding, width - this.framePadding*2, height - this.framePadding*2);
 
-    // Rods
     ctx.lineWidth = 4;
     ctx.strokeStyle = this.scheme.rodColor;
     ctx.beginPath();
@@ -335,24 +329,20 @@ export class AbacusEngine {
         ctx.moveTo(x, this.framePadding);
         ctx.lineTo(x, height - this.framePadding);
       } else {
-        const y = rod.groups[0][0].y + rod.groups[0][0].h / 2;
+        const y = rod.groups[0][0].inactiveY + rod.groups[0][0].h / 2;
         ctx.moveTo(this.framePadding, y);
         ctx.lineTo(width - this.framePadding, y);
       }
     });
     ctx.stroke();
 
-    // Beam (Vertical Only)
     if (this.scheme.orientation === 'vertical' && this.beamY > 0) {
       ctx.fillStyle = this.scheme.beamColor || '#333';
       ctx.fillRect(this.framePadding, this.beamY - 5, width - this.framePadding*2, 10);
       
-      // Decimal Marker
       const unitRodIndex = this.scheme.rods - 1 - this.decimalPlaces;
       if (unitRodIndex >= 0 && unitRodIndex < this.rods.length) {
           const rod = this.rods[unitRodIndex];
-          // Find center X of this rod
-          // We can use the first bead's X position + half width
           const bead = rod.groups[0][0];
           const dotX = bead.inactiveX + bead.w / 2;
           
@@ -367,7 +357,6 @@ export class AbacusEngine {
       }
     }
 
-    // Beads
     this.rods.forEach(rod => {
       rod.groups.forEach(group => {
         group.forEach(bead => {
@@ -376,7 +365,6 @@ export class AbacusEngine {
       });
     });
     
-    // Interaction Cursor
     if (this.cursor.active) {
        this.drawCursor();
     }
@@ -387,7 +375,6 @@ export class AbacusEngine {
     const { x, y, w, h } = bead;
     
     ctx.fillStyle = bead.color;
-    // Highlight if hovered
     if (bead.isHovered) {
         ctx.fillStyle = lightenColor(bead.color, 40);
     }
@@ -397,7 +384,6 @@ export class AbacusEngine {
       const r = Math.min(w, h) / 2;
       ctx.roundRect(x, y, w, h, r);
       ctx.fill();
-      // Highlight
       ctx.fillStyle = 'rgba(255,255,255,0.3)';
       ctx.beginPath();
       ctx.ellipse(x + w*0.3, y + h*0.3, w*0.1, h*0.1, 0, 0, Math.PI*2);
@@ -434,7 +420,6 @@ export class AbacusEngine {
 
   private drawCursor() {
       const { x, y } = this.cursor;
-      // Draw a "Touch" indicator circle
       this.ctx.beginPath();
       this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
       this.ctx.lineWidth = 2;
@@ -446,33 +431,33 @@ export class AbacusEngine {
       this.ctx.arc(x, y, 20, 0, Math.PI * 2);
       this.ctx.fill();
       
-      // Crosshair
       this.ctx.beginPath();
       this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
       this.ctx.arc(x, y, 2, 0, Math.PI*2);
       this.ctx.fill();
   }
 
-  // --- Interaction Handlers ---
-
   private hitTest(x: number, y: number): Bead | null {
-    // Offset y for hit testing if using touch offset visually
-    // The cursor visual is at (x, y), but we want to know what is UNDER the cursor center.
-    
-    // Optimize: only check near rods
+    const isVertical = this.scheme.orientation === 'vertical';
+
     for (const rod of this.rods) {
-      // Quick X check
-      if (rod.groups.length > 0 && rod.groups[0].length > 0) {
-          const sample = rod.groups[0][0];
-          // Expand hit area slightly for better touch
-          if (x < sample.x - 10 || x > sample.x + sample.w + 10) continue;
+      const sample = rod.groups[0]?.[0];
+      if (!sample) continue;
+
+      // Orientation-aware optimization: only check beads in the correct track
+      if (isVertical) {
+          // Check if cursor is near this vertical rod column
+          if (x < sample.inactiveX - 20 || x > sample.inactiveX + sample.w + 20) continue;
+      } else {
+          // Check if cursor is near this horizontal rod row
+          if (y < sample.inactiveY - 20 || y > sample.inactiveY + sample.h + 20) continue;
       }
 
       for (const group of rod.groups) {
         for (const bead of group) {
-           // Hit box with padding
-           if (x >= bead.x - 5 && x <= bead.x + bead.w + 5 &&
-               y >= bead.y - 5 && y <= bead.y + bead.h + 5) {
+           // Direct collision check against current animated bead position
+           if (x >= bead.x - 12 && x <= bead.x + bead.w + 12 &&
+               y >= bead.y - 12 && y <= bead.y + bead.h + 12) {
              return bead;
            }
         }
@@ -483,15 +468,10 @@ export class AbacusEngine {
 
   private handleStart(x: number, y: number) {
      this.cursor.active = true;
-     // If using mouse, cursor is exactly at point. 
-     // If using touch, we might want to offset render, but input coords are raw.
-     // Let's just track the raw input.
      this.cursor.x = x;
      this.cursor.y = y;
      
-     // Check for immediate beam clear on start (if tapping exactly on beam)
      this.checkBeamClear(x, y);
-
      this.updateCursorTarget();
   }
 
@@ -502,7 +482,6 @@ export class AbacusEngine {
 
       const cleared = this.checkBeamClear(x, y);
       if (cleared) {
-          // If we are clearing, we shouldn't also be selecting a bead to toggle on release.
           this.cursor.targetBead = null;
           this.clearHovers();
       } else {
@@ -512,10 +491,8 @@ export class AbacusEngine {
 
   private checkBeamClear(x: number, y: number): boolean {
       if (this.scheme.orientation === 'vertical' && this.beamY > 0) {
-          // Check proximity to beam
-          if (Math.abs(y - this.beamY) < 25) { // 25px threshold covers beam + active bead area
+          if (Math.abs(y - this.beamY) < 25) { 
               const rodIdx = Math.floor((x - this.framePadding) / this.rodSpacing);
-              
               if (rodIdx >= 0 && rodIdx < this.rods.length) {
                   this.clearRod(rodIdx);
                   return true;
@@ -542,23 +519,19 @@ export class AbacusEngine {
       if (!this.cursor.active) return;
       
       if (this.cursor.targetBead) {
-          // Perform action
           const bead = this.cursor.targetBead;
           const rod = this.rods[bead.rodIndex];
           const group = rod.groups[bead.groupIndex];
           this.interactBead(bead, rod, group);
       }
       
-      // Reset
       this.cursor.active = false;
       this.clearHovers();
       this.cursor.targetBead = null;
   }
 
   private updateCursorTarget() {
-      // Find bead under cursor
       const bead = this.hitTest(this.cursor.x, this.cursor.y);
-      
       if (bead !== this.cursor.targetBead) {
           this.clearHovers();
           this.cursor.targetBead = bead;
@@ -576,6 +549,7 @@ export class AbacusEngine {
     const newActiveState = !target.isActive;
     
     if (this.scheme.id === AbacusStyle.SCHOOL) {
+      // In School style, beads slide from right (inactive) to left (active)
       if (newActiveState) {
         for (let i = 0; i <= target.index; i++) this.setBeadState(group[i], true);
       } else {
@@ -613,11 +587,6 @@ export class AbacusEngine {
       });
 
       if (this.scheme.placeValue) {
-        // Decimal Shift Logic
-        // rods=13. decimalPlaces=2.
-        // Unit Rod Index = 13 - 1 - 2 = 10.
-        // Rod 10 -> Power 0.
-        // Rod 12 -> Power -2.
         const power = (this.scheme.rods - 1 - this.decimalPlaces) - rIdx;
         total += rodVal * Math.pow(10, power);
       } else {
@@ -625,7 +594,6 @@ export class AbacusEngine {
       }
     });
 
-    // Fix floating point precision issues (e.g. 0.300000000004)
     if (this.decimalPlaces > 0) {
         const factor = Math.pow(10, this.decimalPlaces);
         total = Math.round(total * factor) / factor;
@@ -635,7 +603,6 @@ export class AbacusEngine {
   }
 }
 
-// Utility
 function lightenColor(hex: string, percent: number): string {
     const num = parseInt(hex.replace("#",""),16),
     amt = Math.round(2.55 * percent),
