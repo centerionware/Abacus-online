@@ -44,7 +44,7 @@ const SCHEMES: Record<AbacusStyle, AbacusScheme> = {
     name: 'School',
     rods: 10,
     orientation: 'horizontal',
-    placeValue: false,
+    placeValue: true,
     beadShape: 'round',
     beadColor: '#dc2626',
     frameColor: '#f3f4f6',
@@ -54,7 +54,7 @@ const SCHEMES: Record<AbacusStyle, AbacusScheme> = {
         count: 10, 
         value: 1, 
         position: 'row', 
-        colors: ['#dc2626', '#ffffff']
+        colors: ['#dc2626', '#cbd5e1'] // Changed white to light slate for visibility
       }
     ]
   }
@@ -84,14 +84,12 @@ class AbacusApp {
   constructor(container: HTMLElement, options: AbacusOptions = {}) {
     this.container = container;
     
-    // Config resolution order: Manual Option > Data Attribute > Style Class > Default
     const dataStyle = container.getAttribute('data-style')?.toUpperCase();
     this.currentStyle = (options.style) || (dataStyle as AbacusStyle) || AbacusStyle.SOROBAN;
     
     const dataDecimals = container.getAttribute('data-decimals');
     this.decimalPlaces = dataDecimals ? parseInt(dataDecimals) : (options.decimals ?? 0);
     
-    // Default showUI based on tag type: False for canvas, True for anything else
     const isCanvas = container.tagName.toLowerCase() === 'canvas';
     const dataUI = container.getAttribute('data-ui');
     this.showUI = dataUI !== null ? dataUI === 'true' : (options.showUI ?? !isCanvas);
@@ -153,7 +151,6 @@ class AbacusApp {
       this.decimalContainer = this.container.querySelector('.decimal-container');
       this.canvas = this.container.querySelector('.abacus-canvas') as HTMLCanvasElement;
     } else {
-      // Minimal mode
       if (this.container instanceof HTMLCanvasElement) {
         this.canvas = this.container;
         this.canvas.classList.add('cursor-pointer', 'touch-none');
@@ -221,7 +218,6 @@ class AbacusApp {
   }
 }
 
-// Global API
 const InteractiveAbacus = {
   create: (selector: string, options: AbacusOptions = {}) => {
     const el = document.querySelector(selector);

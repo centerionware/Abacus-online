@@ -1,4 +1,3 @@
-
 import { AbacusScheme, AbacusStyle, BeadGroupConfig } from '../types';
 
 // Constants
@@ -7,26 +6,22 @@ const BEAD_HEIGHT_RATIO = 0.65;
 const BEAD_WIDTH_RATIO = 0.9;
 
 class Bead {
-  // Properties
   rodIndex: number;
   groupIndex: number; 
   index: number;      
   value: number;
   
-  // State
   isActive: boolean = false;
-  isHovered: boolean = false; // For interaction feedback
+  isHovered: boolean = false;
   pos: number = 0;       
   targetPos: number = 0; 
 
-  // Rendering Layout
   x: number = 0;
   y: number = 0;
   w: number = 0;
   h: number = 0;
   color: string;
 
-  // Geometry references
   inactiveX: number = 0;
   inactiveY: number = 0;
   activeX: number = 0;
@@ -75,17 +70,13 @@ export class AbacusEngine {
   private rods: Rod[] = [];
   private requestRef: number | null = null;
   
-  // Logic State
   private decimalPlaces: number = 0;
-
-  // Interaction State
   private cursor: CursorState = { active: false, x: 0, y: 0, targetBead: null };
   
-  // Layout metrics
   private width = 0;
   private height = 0;
   private framePadding = 20;
-  private rodSpacing = 0;
+  private rodSpacingSize = 0;
   private beamY = 0;
 
   private onTotalChange: (total: number) => void;
@@ -95,12 +86,10 @@ export class AbacusEngine {
     this.ctx = canvas.getContext('2d', { alpha: false })!;
     this.onTotalChange = onTotalChange;
     
-    // Bind interaction events
     this.handleStart = this.handleStart.bind(this);
     this.handleMove = this.handleMove.bind(this);
     this.handleEnd = this.handleEnd.bind(this);
 
-    // Mouse
     canvas.addEventListener('mousedown', (e) => this.handleStart(e.offsetX, e.offsetY));
     window.addEventListener('mousemove', (e) => {
       if (this.cursor.active) {
@@ -110,7 +99,6 @@ export class AbacusEngine {
     });
     window.addEventListener('mouseup', this.handleEnd);
 
-    // Touch
     canvas.addEventListener('touchstart', (e) => {
       e.preventDefault();
       const rect = canvas.getBoundingClientRect();
@@ -199,26 +187,19 @@ export class AbacusEngine {
     this.canvas.height = h * dpr;
     this.ctx.scale(dpr, dpr);
     
-    if (w < 400) {
-        this.framePadding = 10;
-    } else {
-        this.framePadding = 20;
-    }
-
+    this.framePadding = w < 400 ? 10 : 20;
     this.calculateLayout();
   }
 
   private calculateLayout() {
     const { orientation, groups } = this.scheme;
     const isVertical = orientation === 'vertical';
-
     const usableW = this.width - this.framePadding * 2;
     const usableH = this.height - this.framePadding * 2;
 
     if (isVertical) {
-      this.rodSpacing = usableW / this.scheme.rods;
-      const beadW = this.rodSpacing * BEAD_WIDTH_RATIO;
-      
+      this.rodSpacingSize = usableW / this.scheme.rods;
+      const beadW = this.rodSpacingSize * BEAD_WIDTH_RATIO;
       const hasUpper = groups.some(g => g.position === 'top');
       const hasLower = groups.some(g => g.position === 'bottom');
 
@@ -239,13 +220,11 @@ export class AbacusEngine {
       }
 
       this.rods.forEach((rod, rIdx) => {
-        const cx = this.framePadding + (rIdx * this.rodSpacing) + (this.rodSpacing / 2);
-        
+        const cx = this.framePadding + (rIdx * this.rodSpacingSize) + (this.rodSpacingSize / 2);
         rod.groups.forEach((group, gIdx) => {
           const config = groups[gIdx];
           const isTop = config.position === 'top';
           const count = group.length;
-          
           const sectionH = isTop ? upperH : lowerH;
           const startY = isTop ? this.framePadding : (this.framePadding + upperH + beamH);
           const beadH = Math.min(beadW * 0.7, (sectionH / (count + 1.2))); 
@@ -253,7 +232,6 @@ export class AbacusEngine {
           group.forEach((bead, bIdx) => {
             bead.w = beadW;
             bead.h = beadH;
-            
             if (isTop) {
                bead.inactiveY = startY + (bIdx * beadH);
                const offsetFromBottom = (count - 1 - bIdx) * beadH;
@@ -270,12 +248,12 @@ export class AbacusEngine {
       });
 
     } else {
-      const rodHeight = usableH / this.scheme.rods;
-      const beadH = rodHeight * 0.8;
+      this.rodSpacingSize = usableH / this.scheme.rods;
+      const beadH = this.rodSpacingSize * 0.8;
       const beadW = Math.min(beadH, usableW / 15);
 
       this.rods.forEach((rod, rIdx) => {
-        const cy = this.framePadding + (rIdx * rodHeight) + (rodHeight / 2);
+        const cy = this.framePadding + (rIdx * this.rodSpacingSize) + (this.rodSpacingSize / 2);
         rod.groups.forEach((group, gIdx) => {
           const count = group.length;
           group.forEach((bead, bIdx) => {
@@ -291,7 +269,6 @@ export class AbacusEngine {
         });
       });
     }
-
     this.rods.forEach(r => r.groups.forEach(g => g.forEach(b => b.updateRenderCoords())));
   }
 
@@ -313,11 +290,10 @@ export class AbacusEngine {
 
   private draw() {
     const { ctx, width, height } = this;
-    
     ctx.fillStyle = this.scheme.frameColor;
     ctx.fillRect(0, 0, width, height);
 
-    ctx.fillStyle = '#ffffff';
+    ctx.fillStyle = '#f1f5f9'; // Slightly off-white for contrast
     ctx.fillRect(this.framePadding, this.framePadding, width - this.framePadding*2, height - this.framePadding*2);
 
     ctx.lineWidth = 4;
@@ -336,126 +312,128 @@ export class AbacusEngine {
     });
     ctx.stroke();
 
-    if (this.scheme.orientation === 'vertical' && this.beamY > 0) {
-      ctx.fillStyle = this.scheme.beamColor || '#333';
-      ctx.fillRect(this.framePadding, this.beamY - 5, width - this.framePadding*2, 10);
-      
-      const unitRodIndex = this.scheme.rods - 1 - this.decimalPlaces;
-      if (unitRodIndex >= 0 && unitRodIndex < this.rods.length) {
-          const rod = this.rods[unitRodIndex];
-          const bead = rod.groups[0][0];
-          const dotX = bead.inactiveX + bead.w / 2;
-          
-          ctx.fillStyle = '#ffffff';
-          ctx.beginPath();
-          ctx.arc(dotX, this.beamY, 4, 0, Math.PI * 2);
-          ctx.fill();
-          
-          ctx.strokeStyle = '#000000';
-          ctx.lineWidth = 1;
-          ctx.stroke();
-      }
+    // Place value indicators (Unit marker and markers every 4 rods)
+    const unitIdx = this.scheme.rods - 1 - this.decimalPlaces;
+    if (unitIdx >= 0 && unitIdx < this.rods.length) {
+        
+        // Marker indices: unitIdx, unitIdx-4, unitIdx-8, etc.
+        const markers = [];
+        for (let i = unitIdx; i >= 0; i -= 4) {
+            markers.push(i);
+        }
+
+        if (this.scheme.orientation === 'vertical' && this.beamY > 0) {
+            // Draw the beam
+            ctx.fillStyle = this.scheme.beamColor || '#333';
+            ctx.fillRect(this.framePadding, this.beamY - 5, width - this.framePadding*2, 10);
+            
+            markers.forEach(idx => {
+                const isUnit = idx === unitIdx;
+                const rod = this.rods[idx];
+                const x = rod.groups[0][0].inactiveX + rod.groups[0][0].w / 2;
+                
+                // HIGH CONTRAST MARKERS
+                // Outer ring for definition
+                ctx.strokeStyle = isUnit ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.3)';
+                ctx.lineWidth = isUnit ? 1.5 : 1;
+                ctx.beginPath();
+                ctx.arc(x, this.beamY, isUnit ? 4.5 : 3.5, 0, Math.PI * 2);
+                ctx.stroke();
+
+                // Inner dot
+                ctx.fillStyle = isUnit ? '#ffffff' : '#cbd5e1'; // White for unit, bright gray for others
+                ctx.beginPath();
+                ctx.arc(x, this.beamY, isUnit ? 3.5 : 2.5, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        } else if (this.scheme.orientation === 'horizontal') {
+            markers.forEach(idx => {
+                const isUnit = idx === unitIdx;
+                const rod = this.rods[idx];
+                const y = rod.groups[0][0].inactiveY + rod.groups[0][0].h / 2;
+                
+                // HIGH CONTRAST MARKERS FOR SIDE FRAME
+                const dotSize = isUnit ? 5 : 3.5;
+                ctx.fillStyle = isUnit ? '#475569' : '#94a3b8'; // Slate-600 for unit, Slate-400 for others
+                
+                // Left margin
+                ctx.beginPath();
+                ctx.arc(this.framePadding / 2, y, dotSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Right margin
+                ctx.beginPath();
+                ctx.arc(this.width - this.framePadding / 2, y, dotSize, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Optional stroke for unit
+                if (isUnit) {
+                   ctx.strokeStyle = '#1e293b';
+                   ctx.lineWidth = 1;
+                   ctx.stroke();
+                }
+            });
+        }
     }
 
-    this.rods.forEach(rod => {
-      rod.groups.forEach(group => {
-        group.forEach(bead => {
-          this.drawBead(bead);
-        });
-      });
-    });
-    
-    if (this.cursor.active) {
-       this.drawCursor();
-    }
+    this.rods.forEach(rod => rod.groups.forEach(group => group.forEach(bead => this.drawBead(bead))));
+    if (this.cursor.active) this.drawCursor();
   }
 
   private drawBead(bead: Bead) {
     const ctx = this.ctx;
     const { x, y, w, h } = bead;
-    
     ctx.fillStyle = bead.color;
-    if (bead.isHovered) {
-        ctx.fillStyle = lightenColor(bead.color, 40);
-    }
+    if (bead.isHovered) ctx.fillStyle = lightenColor(bead.color, 40);
     
     if (this.scheme.beadShape === 'round') {
       ctx.beginPath();
-      const r = Math.min(w, h) / 2;
-      ctx.roundRect(x, y, w, h, r);
+      ctx.roundRect(x, y, w, h, Math.min(w, h) / 2);
       ctx.fill();
-      ctx.fillStyle = 'rgba(255,255,255,0.3)';
-      ctx.beginPath();
-      ctx.ellipse(x + w*0.3, y + h*0.3, w*0.1, h*0.1, 0, 0, Math.PI*2);
-      ctx.fill();
-
     } else if (this.scheme.beadShape === 'bicone') {
       ctx.beginPath();
-      ctx.moveTo(x, y + h*0.1);
-      ctx.lineTo(x + w/2, y - h * 0.1); 
-      ctx.lineTo(x + w, y + h*0.1);
-      ctx.lineTo(x + w, y + h*0.9);
-      ctx.lineTo(x + w/2, y + h * 1.1); 
-      ctx.lineTo(x, y + h*0.9);
-      ctx.closePath();
-      
-      ctx.beginPath();
-      ctx.moveTo(x + w/2, y);
-      ctx.lineTo(x + w, y + h/2);
-      ctx.lineTo(x + w/2, y + h);
-      ctx.lineTo(x, y + h/2);
-      ctx.closePath();
-      ctx.fill();
-      
-      ctx.strokeStyle = 'rgba(0,0,0,0.1)';
-      ctx.lineWidth = 1;
-      ctx.stroke();
-
+      ctx.moveTo(x, y + h*0.1); ctx.lineTo(x + w/2, y - h*0.1); ctx.lineTo(x + w, y + h*0.1);
+      ctx.lineTo(x + w, y + h*0.9); ctx.lineTo(x + w/2, y + h*1.1); ctx.lineTo(x, y + h*0.9);
+      ctx.closePath(); ctx.fill();
     } else {
-      ctx.beginPath();
-      ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2);
-      ctx.fill();
+      ctx.beginPath(); ctx.ellipse(x + w/2, y + h/2, w/2, h/2, 0, 0, Math.PI*2); ctx.fill();
     }
+
+    // Border to ensure visibility against any background
+    ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Shine/Depth
+    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+    ctx.beginPath(); ctx.ellipse(x + w*0.3, y + h*0.3, w*0.1, h*0.1, 0, 0, Math.PI*2); ctx.fill();
   }
 
   private drawCursor() {
       const { x, y } = this.cursor;
-      this.ctx.beginPath();
-      this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)';
-      this.ctx.lineWidth = 2;
-      this.ctx.arc(x, y, 25, 0, Math.PI * 2);
-      this.ctx.stroke();
-
+      this.ctx.beginPath(); this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.2)'; this.ctx.lineWidth = 2;
+      this.ctx.arc(x, y, 25, 0, Math.PI * 2); this.ctx.stroke();
       this.ctx.fillStyle = 'rgba(0, 150, 255, 0.2)';
-      this.ctx.beginPath();
-      this.ctx.arc(x, y, 20, 0, Math.PI * 2);
-      this.ctx.fill();
-      
-      this.ctx.beginPath();
-      this.ctx.fillStyle = 'rgba(0,0,0,0.5)';
-      this.ctx.arc(x, y, 2, 0, Math.PI*2);
-      this.ctx.fill();
+      this.ctx.beginPath(); this.ctx.arc(x, y, 20, 0, Math.PI * 2); this.ctx.fill();
   }
 
   private hitTest(x: number, y: number): Bead | null {
     const isVertical = this.scheme.orientation === 'vertical';
-
     for (const rod of this.rods) {
       const sample = rod.groups[0]?.[0];
       if (!sample) continue;
 
-      // Orientation-aware optimization: only check beads in the correct track
+      const trackStart = this.framePadding + rod.index * this.rodSpacingSize;
+      const trackEnd = trackStart + this.rodSpacingSize;
       if (isVertical) {
-          // Check if cursor is near this vertical rod column
-          if (x < sample.inactiveX - 20 || x > sample.inactiveX + sample.w + 20) continue;
+          if (x < trackStart || x > trackEnd) continue;
       } else {
-          // Check if cursor is near this horizontal rod row
-          if (y < sample.inactiveY - 20 || y > sample.inactiveY + sample.h + 20) continue;
+          if (y < trackStart || y > trackEnd) continue;
       }
 
       for (const group of rod.groups) {
         for (const bead of group) {
-           // Direct collision check against current animated bead position
+           // Larger hit targets for touch (12px padding)
            if (x >= bead.x - 12 && x <= bead.x + bead.w + 12 &&
                y >= bead.y - 12 && y <= bead.y + bead.h + 12) {
              return bead;
@@ -467,23 +445,15 @@ export class AbacusEngine {
   }
 
   private handleStart(x: number, y: number) {
-     this.cursor.active = true;
-     this.cursor.x = x;
-     this.cursor.y = y;
-     
-     this.checkBeamClear(x, y);
-     this.updateCursorTarget();
+     this.cursor.active = true; this.cursor.x = x; this.cursor.y = y;
+     this.checkBeamClear(x, y); this.updateCursorTarget();
   }
 
   private handleMove(x: number, y: number) {
       if (!this.cursor.active) return;
-      this.cursor.x = x;
-      this.cursor.y = y;
-
-      const cleared = this.checkBeamClear(x, y);
-      if (cleared) {
-          this.cursor.targetBead = null;
-          this.clearHovers();
+      this.cursor.x = x; this.cursor.y = y;
+      if (this.checkBeamClear(x, y)) {
+          this.cursor.targetBead = null; this.clearHovers();
       } else {
           this.updateCursorTarget();
       }
@@ -492,11 +462,8 @@ export class AbacusEngine {
   private checkBeamClear(x: number, y: number): boolean {
       if (this.scheme.orientation === 'vertical' && this.beamY > 0) {
           if (Math.abs(y - this.beamY) < 25) { 
-              const rodIdx = Math.floor((x - this.framePadding) / this.rodSpacing);
-              if (rodIdx >= 0 && rodIdx < this.rods.length) {
-                  this.clearRod(rodIdx);
-                  return true;
-              }
+              const rodIdx = Math.floor((x - this.framePadding) / this.rodSpacingSize);
+              if (rodIdx >= 0 && rodIdx < this.rods.length) { this.clearRod(rodIdx); return true; }
           }
       }
       return false;
@@ -505,36 +472,23 @@ export class AbacusEngine {
   private clearRod(rodIdx: number) {
     const rod = this.rods[rodIdx];
     let changed = false;
-    rod.groups.forEach(g => g.forEach(b => {
-        if (b.isActive) {
-            b.isActive = false;
-            b.targetPos = 0;
-            changed = true;
-        }
-    }));
+    rod.groups.forEach(g => g.forEach(b => { if (b.isActive) { b.isActive = false; b.targetPos = 0; changed = true; } }));
     if (changed) this.notifyTotal();
   }
 
   private handleEnd() {
       if (!this.cursor.active) return;
-      
       if (this.cursor.targetBead) {
           const bead = this.cursor.targetBead;
-          const rod = this.rods[bead.rodIndex];
-          const group = rod.groups[bead.groupIndex];
-          this.interactBead(bead, rod, group);
+          this.interactBead(bead, this.rods[bead.rodIndex], this.rods[bead.rodIndex].groups[bead.groupIndex]);
       }
-      
-      this.cursor.active = false;
-      this.clearHovers();
-      this.cursor.targetBead = null;
+      this.cursor.active = false; this.clearHovers(); this.cursor.targetBead = null;
   }
 
   private updateCursorTarget() {
       const bead = this.hitTest(this.cursor.x, this.cursor.y);
       if (bead !== this.cursor.targetBead) {
-          this.clearHovers();
-          this.cursor.targetBead = bead;
+          this.clearHovers(); this.cursor.targetBead = bead;
           if (bead) bead.isHovered = true;
       }
   }
@@ -549,7 +503,6 @@ export class AbacusEngine {
     const newActiveState = !target.isActive;
     
     if (this.scheme.id === AbacusStyle.SCHOOL) {
-      // In School style, beads slide from right (inactive) to left (active)
       if (newActiveState) {
         for (let i = 0; i <= target.index; i++) this.setBeadState(group[i], true);
       } else {
@@ -572,20 +525,14 @@ export class AbacusEngine {
   }
 
   private setBeadState(bead: Bead, active: boolean) {
-    bead.isActive = active;
-    bead.targetPos = active ? 1 : 0;
+    bead.isActive = active; bead.targetPos = active ? 1 : 0;
   }
 
   private notifyTotal() {
     let total = 0;
     this.rods.forEach((rod, rIdx) => {
       let rodVal = 0;
-      rod.groups.forEach(group => {
-        group.forEach(bead => {
-          if (bead.isActive) rodVal += bead.value;
-        });
-      });
-
+      rod.groups.forEach(group => group.forEach(bead => { if (bead.isActive) rodVal += bead.value; }));
       if (this.scheme.placeValue) {
         const power = (this.scheme.rods - 1 - this.decimalPlaces) - rIdx;
         total += rodVal * Math.pow(10, power);
@@ -593,21 +540,16 @@ export class AbacusEngine {
         total += rodVal;
       }
     });
-
     if (this.decimalPlaces > 0) {
         const factor = Math.pow(10, this.decimalPlaces);
         total = Math.round(total * factor) / factor;
     }
-
     this.onTotalChange(total);
   }
 }
 
 function lightenColor(hex: string, percent: number): string {
-    const num = parseInt(hex.replace("#",""),16),
-    amt = Math.round(2.55 * percent),
-    R = (num >> 16) + amt,
-    G = (num >> 8 & 0x00FF) + amt,
-    B = (num & 0x0000FF) + amt;
+    const num = parseInt(hex.replace("#",""),16), amt = Math.round(2.55 * percent),
+    R = (num >> 16) + amt, G = (num >> 8 & 0x00FF) + amt, B = (num & 0x0000FF) + amt;
     return "#" + (0x1000000 + (R<255?R<1?0:R:255)*0x10000 + (G<255?G<1?0:G:255)*0x100 + (B<255?B<1?0:B:255)).toString(16).slice(1);
 }
